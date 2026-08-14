@@ -104,6 +104,13 @@ func run(ctx context.Context, args []string) error {
 }
 
 func runCopy(ctx context.Context, sources []string, dest string) error {
+	if !term.IsTerminal(os.Stdout.Fd()) {
+		return runCopyDirect(sources, dest)
+	}
+	if w, _, err := term.GetSize(os.Stdout.Fd()); err != nil || w == 0 {
+		return runCopyDirect(sources, dest)
+	}
+
 	stats, err := walk.ComputeStats(sources)
 	if err != nil {
 		return err
@@ -143,7 +150,9 @@ func runCopyWithProgress(ctx context.Context, sources []string, dest string, sta
 	model := ui.NewModel(ui.ThemeMocha, ui.OpCopy, flagVerbose, stats.TotalBytes, stats.TotalFiles)
 	p := tea.NewProgram(model)
 
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		var cumulBytes, cumulFiles int64
 		for _, src := range sources {
 			dst := destPath(dest, src)
@@ -162,8 +171,10 @@ func runCopyWithProgress(ctx context.Context, sources []string, dest string, sta
 	}()
 
 	if _, err := p.Run(); err != nil {
-		return runCopyDirect(sources, dest)
+		<-done
+		return summarizeErrors(ec)
 	}
+	<-done
 
 	if ctx.Err() != nil {
 		printInterrupted("copy", stats.TotalFiles)
