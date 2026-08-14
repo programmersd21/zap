@@ -1,0 +1,42 @@
+# binaries
+zap
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# test binary, built with `go test -c`
+*.test
+
+# output of the go coverage tool
+*.out
+coverage.txt
+
+# go workspace file
+go.work
+go.work.sum
+
+# dependency directories
+vendor/
+
+# ide and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# build artifacts
+dist/
+build/
+bin/
+
+# temporary files
+tmp/
+temp/
+*.tmp
+
+# logs
+*.log

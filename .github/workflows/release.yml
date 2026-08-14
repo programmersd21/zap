@@ -1,0 +1,95 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v4
+
+    - name: set up go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.26.5'
+
+    - name: cache go modules
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: build binaries
+      env:
+        CGO_ENABLED: '0'
+      run: |
+        set -e
+        mkdir -p dist
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          targets="linux/amd64 linux/arm64 windows/amd64"
+        else
+          targets="darwin/amd64 darwin/arm64"
+        fi
+        for target in $targets; do
+          os="${target%/*}"
+          arch="${target#*/}"
+          ext=""
+          if [ "$os" = "windows" ]; then
+            ext=".exe"
+          fi
+          name="zap-${os}-${arch}${ext}"
+          GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags="-s -w" -o "dist/${name}" ./cmd/zap
+          echo "built ${name}"
+        done
+
+    - name: smoke test native binary
+      run: |
+        set -e
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          binary="./dist/zap-linux-amd64"
+        elif [ "$(uname -m)" = "arm64" ]; then
+          binary="./dist/zap-darwin-arm64"
+        else
+          binary="./dist/zap-darwin-amd64"
+        fi
+        "$binary" --help >/dev/null
+        echo "binary ok"
+
+    - name: upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist-${{ matrix.os }}
+        path: dist/*
+        if-no-files-found: error
+
+  release:
+    name: release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist
+        merge-multiple: true
+
+    - name: create release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: dist/*
+        generate_release_notes: true
