@@ -40,18 +40,14 @@ jobs:
         set -e
         mkdir -p dist
         if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-          targets="linux/amd64 linux/arm64 windows/amd64"
+          targets="linux/amd64 linux/arm64"
         else
           targets="darwin/amd64 darwin/arm64"
         fi
         for target in $targets; do
           os="${target%/*}"
           arch="${target#*/}"
-          ext=""
-          if [ "$os" = "windows" ]; then
-            ext=".exe"
-          fi
-          name="zap-${os}-${arch}${ext}"
+          name="zap-${os}-${arch}"
           GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags="-s -w" -o "dist/${name}" ./cmd/zap
           echo "built ${name}"
         done
