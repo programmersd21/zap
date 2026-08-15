@@ -20,7 +20,7 @@ import (
 	"github.com/programmersd21/zap/internal/walk"
 )
 
-const version = "0.1.0"
+const version = "0.1.1"
 
 var (
 	flagMove      bool
@@ -155,6 +155,9 @@ func runCopyWithProgress(ctx context.Context, sources []string, dest string, sta
 		defer close(done)
 		var cumulBytes, cumulFiles int64
 		for _, src := range sources {
+			if ctx.Err() != nil {
+				return
+			}
 			dst := destPath(dest, src)
 			opts := ops.CopyOptions{
 				Force:      true,
@@ -167,7 +170,13 @@ func runCopyWithProgress(ctx context.Context, sources []string, dest string, sta
 				ec.Add(src, err)
 			}
 		}
-		p.Send(ui.CompletedMsg{})
+		if ctx.Err() == nil {
+			if ec.HasErrors() {
+				p.Send(ui.ErrorMsg{Err: fmt.Errorf("%d error(s)", ec.Count())})
+			} else {
+				p.Send(ui.CompletedMsg{})
+			}
+		}
 	}()
 
 	if _, err := p.Run(); err != nil {
@@ -241,23 +250,38 @@ func runDeleteWithProgress(ctx context.Context, paths []string, stats walk.Stats
 	model := ui.NewModel(ui.ThemeMocha, ui.OpDelete, flagVerbose, 0, stats.TotalFiles)
 	p := tea.NewProgram(model)
 
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
+		var cumulFiles int64
 		for _, path := range paths {
+			if ctx.Err() != nil {
+				return
+			}
 			opts := ops.DeleteOptions{
-				Recursive: flagRecursive,
-				Program:   p,
-				Errors:    ec,
+				Recursive:  flagRecursive,
+				Program:    p,
+				Errors:     ec,
+				CumulFiles: &cumulFiles,
 			}
 			if err := ops.Delete(path, opts); err != nil && !flagForce {
 				ec.Add(path, err)
 			}
 		}
-		p.Send(ui.CompletedMsg{})
+		if ctx.Err() == nil {
+			if ec.HasErrors() {
+				p.Send(ui.ErrorMsg{Err: fmt.Errorf("%d error(s)", ec.Count())})
+			} else {
+				p.Send(ui.CompletedMsg{})
+			}
+		}
 	}()
 
 	if _, err := p.Run(); err != nil {
+		<-done
 		return fmt.Errorf("ui error: %w", err)
 	}
+	<-done
 
 	if ctx.Err() != nil {
 		printInterrupted("delete", stats.TotalFiles)
@@ -276,13 +300,14 @@ func destPath(dest, src string) string {
 
 func promptYN(r *bufio.Reader, msg string) bool {
 	styles := ui.NewStyles(ui.ThemeMocha)
-	fmt.Fprintf(os.Stderr, "%s %s ",
+	fmt.Fprintf(os.Stderr, "%s %s %s ",
 		styles.Warning.Bold(true).Render("?"),
 		styles.Primary.Render(msg),
+		styles.Muted.Render("[Y/n]"),
 	)
 	resp, _ := r.ReadString('\n')
 	resp = strings.ToLower(strings.TrimSpace(resp))
-	return resp == "y" || resp == "yes"
+	return resp == "" || resp == "y" || resp == "yes"
 }
 
 func summarizeErrors(ec *errs.Collector) error {

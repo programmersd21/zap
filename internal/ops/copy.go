@@ -20,10 +20,32 @@ type CopyOptions struct {
 	CumulFiles *int64
 }
 
+func samePath(a, b string) bool {
+	absA, errA := filepath.Abs(a)
+	absB, errB := filepath.Abs(b)
+	if errA != nil || errB != nil {
+		return a == b
+	}
+	if filepath.Clean(absA) == filepath.Clean(absB) {
+		return true
+	}
+	// check filesystem identity via inode
+	infoA, errA := os.Stat(absA)
+	infoB, errB := os.Stat(absB)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return os.SameFile(infoA, infoB)
+}
+
 func Copy(src, dst string, opts CopyOptions) error {
 	srcInfo, err := os.Lstat(src)
 	if err != nil {
 		return fmt.Errorf("stat %s: %w", src, err)
+	}
+
+	if samePath(src, dst) {
+		return fmt.Errorf("%s and %s are the same file", src, dst)
 	}
 
 	if dstInfo, err := os.Lstat(dst); err == nil {

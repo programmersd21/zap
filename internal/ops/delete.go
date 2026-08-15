@@ -41,7 +41,7 @@ func deleteFile(path string, opts DeleteOptions) error {
 	if err := os.Remove(path); err != nil {
 		return err
 	}
-	sendDeleteProgress(opts, path)
+	sendDeleteProgress(opts, path, true)
 	return nil
 }
 
@@ -74,7 +74,7 @@ func deleteDir(path string, opts DeleteOptions) error {
 				opts.Errors.Add(f, err)
 			}
 		} else {
-			sendDeleteProgress(opts, f)
+			sendDeleteProgress(opts, f, true)
 		}
 	}
 
@@ -85,26 +85,28 @@ func deleteDir(path string, opts DeleteOptions) error {
 				opts.Errors.Add(d, err)
 			}
 		} else {
-			sendDeleteProgress(opts, d)
+			sendDeleteProgress(opts, d, false)
 		}
 	}
 
 	if err := os.Remove(path); err != nil {
 		return err
 	}
-	sendDeleteProgress(opts, path)
+	sendDeleteProgress(opts, path, false)
 
 	return nil
 }
 
-func sendDeleteProgress(opts DeleteOptions, path string) {
-	if opts.Program == nil {
-		return
-	}
+func sendDeleteProgress(opts DeleteOptions, path string, isFile bool) {
 	var files int64
 	if opts.CumulFiles != nil {
-		*opts.CumulFiles++
+		if isFile {
+			*opts.CumulFiles++
+		}
 		files = *opts.CumulFiles
+	}
+	if opts.Program == nil {
+		return
 	}
 	opts.Program.Send(ui.ProgressMsg{
 		FilesDone:   files,

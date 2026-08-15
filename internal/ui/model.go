@@ -101,7 +101,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.prompt != nil {
 			var ok, handled bool
 			switch msg.String() {
-			case "y", "Y":
+			case "y", "Y", "enter":
 				ok, handled = true, true
 			case "n", "N", "esc", "ctrl+c":
 				ok, handled = false, true

@@ -2,6 +2,14 @@
 
 all notable changes to this project will be documented in this file.
 
+## [0.1.1] - 2026-08-15
+
+### fixes
+- fixed delete operations reporting 0 files in completion summary
+- fixed same-path operations (copy/move to self) potentially destroying files
+- overwrite prompt now defaults to yes on enter (`[Y/n]`)
+- improved error and cancellation handling in progress ui
+
 ## [0.1.0] - 2026-08-14
 
 ### features
@@ -12,4 +20,5 @@ all notable changes to this project will be documented in this file.
 - safe overwrite prompts and directory delete validation
 - non-tty fallback for script pipelines
 
+[0.1.1]: https://github.com/programmersd21/zap/releases/tag/v0.1.1
 [0.1.0]: https://github.com/programmersd21/zap/releases/tag/v0.1.0

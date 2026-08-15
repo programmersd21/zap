@@ -28,8 +28,8 @@ func TestVersion(t *testing.T) {
 		t.Fatalf("failed to run --version: %v", err)
 	}
 
-	if !strings.Contains(string(output), "0.1.0") {
-		t.Errorf("expected version 0.1.0, got: %s", output)
+	if !strings.Contains(string(output), "0.1.1") {
+		t.Errorf("expected version 0.1.1, got: %s", output)
 	}
 }
 

@@ -1,4 +1,4 @@
-### zap
+# zap
 
 fast file operations with real-time progress.
 
@@ -11,8 +11,8 @@ fast file operations with real-time progress.
 - **fast** — 1 mb buffered streaming io for large file copies
 - **real-time progress** — transfer speeds, file counts, and estimated time remaining
 - **terminal aware** — dynamic width adjustments and automatic path truncation
-- **safe defaults** — confirmation on overwrites and protection for recursive deletes
-- **script friendly** — automatically falls back to quiet/direct output when stdout is not a tty
+- **safe defaults** — same-path identity protection, overwrite confirmations (`[Y/n]`), and recursive delete checks
+- **script friendly** — automatically falls back to direct output when stdout is not a tty
 
 ## install
 

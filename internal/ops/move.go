@@ -19,6 +19,9 @@ type MoveOptions struct {
 }
 
 func Move(src, dst string, opts MoveOptions) error {
+	if samePath(src, dst) {
+		return fmt.Errorf("%s and %s are the same file", src, dst)
+	}
 	err := os.Rename(src, dst)
 	if err == nil {
 		return nil

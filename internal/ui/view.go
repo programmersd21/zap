@@ -78,6 +78,10 @@ func (m Model) opBadge() string {
 }
 
 func (m Model) View() tea.View {
+	if m.quitting {
+		return tea.NewView("")
+	}
+
 	if m.err != nil {
 		icon := m.styles.Error.Bold(true).Render("✗")
 		msg := m.styles.Error.Render(m.err.Error())
@@ -168,7 +172,7 @@ func (m Model) View() tea.View {
 		sb.WriteString("\n")
 		warn := m.styles.Warning.Bold(true).Render("overwrite")
 		path := m.styles.Primary.Render(shorten(m.prompt.path, m.termWidth-20))
-		hint := muted.Render("y / n")
+		hint := muted.Render("[Y/n]")
 		sb.WriteString("  ")
 		sb.WriteString(warn)
 		sb.WriteString("  ")
@@ -183,21 +187,28 @@ func (m Model) View() tea.View {
 		elapsed := time.Since(m.startTime)
 		icon := m.styles.Success.Bold(true).Render("✓")
 
+		fileWord := "files"
+		if m.filesDone == 1 {
+			fileWord = "file"
+		}
+
 		var summary string
 		switch {
 		case m.totalBytes > 0 && m.totalFiles > 0:
 			summary = fmt.Sprintf(
-				"%s  %s files · %s in %s",
+				"%s  %s %s · %s in %s",
 				icon,
 				FormatNumber(m.filesDone),
+				fileWord,
 				FormatBytes(m.bytesDone),
 				formatDuration(int64(elapsed.Seconds())),
 			)
 		case m.totalFiles > 0:
 			summary = fmt.Sprintf(
-				"%s  %s files in %s",
+				"%s  %s %s in %s",
 				icon,
 				FormatNumber(m.filesDone),
+				fileWord,
 				formatDuration(int64(elapsed.Seconds())),
 			)
 		default:
