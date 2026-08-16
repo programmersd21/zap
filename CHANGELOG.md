@@ -6,6 +6,7 @@ all notable changes to this project will be documented in this file.
 
 ### features
 - trash mode (`-t`, `--trash`) moves files to the system trash — freedesktop spec on linux, `~/.Trash` on macos, with name collision handling and cross-device support
+- shred mode (`-s`, `--shred`) overwrites regular files with random data before deletion, with live byte progress
 - delete now refuses to operate on the filesystem root unless `--no-preserve-root` is given
 - verbosity levels: `-v` files, `-vv` operation logging, `-vvv` debug output
 - conflicting modes are rejected with a hint instead of behaving unexpectedly

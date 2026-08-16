@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -177,6 +178,9 @@ func TestDeleteIntegration(t *testing.T) {
 func TestTrashIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
+	}
+	if runtime.GOOS == "darwin" {
+		t.Skip("trash location is fixed on darwin")
 	}
 
 	binary := filepath.Join(t.TempDir(), "zap")

@@ -27,6 +27,7 @@ var (
 	flagDelete         bool
 	flagCopy           bool
 	flagTrash          bool
+	flagShred          bool
 	flagForce          bool
 	flagRecursive      bool
 	flagVerbose        int
@@ -62,6 +63,7 @@ it shows real-time progress for any operation — from single files to huge dire
 	rootCmd.Flags().BoolVarP(&flagDelete, "delete", "d", false, "delete instead of copy")
 	rootCmd.Flags().BoolVarP(&flagCopy, "copy", "c", false, "copy (explicit, same as default)")
 	rootCmd.Flags().BoolVarP(&flagTrash, "trash", "t", false, "move to trash instead of copy")
+	rootCmd.Flags().BoolVarP(&flagShred, "shred", "s", false, "overwrite with random data before delete")
 	rootCmd.Flags().BoolVarP(&flagForce, "force", "f", false, "overwrite without prompting")
 	rootCmd.Flags().BoolVarP(&flagRecursive, "recursive", "r", false, "recursive (required for deleting directories)")
 	rootCmd.Flags().CountVarP(&flagVerbose, "verbose", "v", "verbosity: -v files, -vv operations, -vvv debug")
@@ -97,6 +99,13 @@ func run(ctx context.Context, args []string) error {
 		return runDelete(ctx, args)
 	}
 
+	if flagShred {
+		if len(args) == 0 {
+			return newHintError("shred mode requires at least one path", "zap -s <path>...")
+		}
+		return runShred(ctx, args)
+	}
+
 	if flagTrash {
 		if len(args) == 0 {
 			return newHintError("trash mode requires at least one path", "zap -t <path>...")
@@ -120,13 +129,13 @@ func run(ctx context.Context, args []string) error {
 
 func checkModes() error {
 	modes := 0
-	for _, enabled := range []bool{flagMove, flagDelete, flagCopy, flagTrash} {
+	for _, enabled := range []bool{flagMove, flagDelete, flagCopy, flagTrash, flagShred} {
 		if enabled {
 			modes++
 		}
 	}
 	if modes > 1 {
-		return newHintError("conflicting modes selected", "choose one of copy, move, delete, or trash")
+		return newHintError("conflicting modes selected", "choose one of copy, move, delete, trash, or shred")
 	}
 	return nil
 }
@@ -403,6 +412,85 @@ func runTrashWithProgress(ctx context.Context, paths []string, stats walk.Stats)
 
 	if ctx.Err() != nil {
 		printInterrupted("trash", stats.TotalFiles)
+		os.Exit(130)
+	}
+
+	return summarizeErrors(ec)
+}
+
+func runShred(ctx context.Context, paths []string) error {
+	if !term.IsTerminal(os.Stdout.Fd()) {
+		return runShredDirect(paths)
+	}
+	if w, _, err := term.GetSize(os.Stdout.Fd()); err != nil || w == 0 {
+		return runShredDirect(paths)
+	}
+
+	stats, err := walk.ComputeStats(paths)
+	if err != nil {
+		return err
+	}
+	return runShredWithProgress(ctx, paths, stats)
+}
+
+func runShredDirect(paths []string) error {
+	ec := errs.NewCollector()
+	for _, path := range paths {
+		debugf(2, "shred %s", path)
+		opts := ops.ShredOptions{Errors: ec, NoPreserveRoot: flagNoPreserveRoot}
+		if err := ops.Shred(path, opts); err != nil {
+			ec.Add(path, err)
+		}
+		if flagVerbose >= 1 {
+			fmt.Fprintf(os.Stderr, "  shredded %s\n", path)
+		}
+	}
+	return summarizeErrors(ec)
+}
+
+func runShredWithProgress(ctx context.Context, paths []string, stats walk.Stats) error {
+	ec := errs.NewCollector()
+	model := ui.NewModel(ui.ThemeMocha, ui.OpShred, flagVerbose >= 1, stats.TotalBytes, stats.TotalFiles)
+	p := tea.NewProgram(model)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		var cumulBytes, cumulFiles int64
+		for _, path := range paths {
+			if ctx.Err() != nil {
+				return
+			}
+			debugf(2, "shred %s", path)
+			opts := ops.ShredOptions{
+				Passes:         3,
+				Program:        p,
+				Errors:         ec,
+				CumulBytes:     &cumulBytes,
+				CumulFiles:     &cumulFiles,
+				NoPreserveRoot: flagNoPreserveRoot,
+			}
+			if err := ops.Shred(path, opts); err != nil {
+				ec.Add(path, err)
+			}
+		}
+		if ctx.Err() == nil {
+			if ec.HasErrors() {
+				p.Send(ui.ErrorMsg{Err: fmt.Errorf("%d error(s)", ec.Count())})
+			} else {
+				p.Send(ui.CompletedMsg{})
+			}
+		}
+	}()
+
+	if _, err := p.Run(); err != nil {
+		<-done
+		return fmt.Errorf("ui error: %w", err)
+	}
+	<-done
+
+	if ctx.Err() != nil {
+		printInterrupted("shred", stats.TotalFiles)
 		os.Exit(130)
 	}
 

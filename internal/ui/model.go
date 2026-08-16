@@ -15,6 +15,7 @@ const (
 	OpMove
 	OpDelete
 	OpTrash
+	OpShred
 )
 
 type ProgressMsg struct {

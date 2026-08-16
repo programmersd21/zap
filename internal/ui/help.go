@@ -33,6 +33,7 @@ func RenderHelp(cmd *cobra.Command, theme Theme) string {
 		{"-m", "move  ", "move — rename or copy+delete across devices"},
 		{"-d", "delete", "delete files or directories"},
 		{"-t", "trash ", "move to the system trash"},
+		{"-s", "shred ", "overwrite with random data, then delete"},
 	}
 	for _, m := range modes {
 		sb.WriteString("  " + flagStyle.Render(m.flag) + "  " + nameStyle.Render(m.name) + "  " + descStyle.Render(m.desc) + "\n")
@@ -58,6 +59,7 @@ func RenderHelp(cmd *cobra.Command, theme Theme) string {
 		{"zap photos/ backup/", "copy directory recursively"},
 		{"zap -m old.txt new.txt", "rename / move file"},
 		{"zap -t photo.jpg", "move to trash"},
+		{"zap -s secret.db", "securely overwrite and delete"},
 		{"zap -d -r logs/", "delete directory recursively"},
 	}
 	cmdStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(theme.ProgressFrom))

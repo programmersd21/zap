@@ -54,6 +54,11 @@ zap -t file.log
 zap -t cache/
 ```
 
+### shred (`-s`)
+```bash
+zap -s secret.db
+```
+
 ## flags
 
 | flag | description |
@@ -62,6 +67,7 @@ zap -t cache/
 | `-m, --move` | move mode (rename or copy+delete across devices) |
 | `-d, --delete` | delete mode |
 | `-t, --trash` | trash mode (system trash) |
+| `-s, --shred` | shred mode (overwrite with random data, then delete) |
 | `-f, --force` | overwrite without confirmation |
 | `-r, --recursive` | required for deleting directories |
 | `-v, --verbose` | verbosity: `-v` files, `-vv` operations, `-vvv` debug |

@@ -74,6 +74,8 @@ func (m Model) opBadge() string {
 		return m.styles.DeleteStyle.Render("delete")
 	case OpTrash:
 		return m.styles.TrashStyle.Render("trash")
+	case OpShred:
+		return m.styles.ShredStyle.Render("shred")
 	default:
 		return m.styles.CopyStyle.Render("copy")
 	}
