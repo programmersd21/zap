@@ -115,6 +115,10 @@ func TestTrashNonexistent(t *testing.T) {
 }
 
 func TestTrashReportsErrors(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		t.Skip("trash location differs on darwin")
+	}
+
 	// force an unusable trash root so the operation fails cleanly
 	tmp := t.TempDir()
 	blocker := filepath.Join(tmp, "Trash")
