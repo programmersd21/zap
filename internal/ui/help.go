@@ -32,6 +32,7 @@ func RenderHelp(cmd *cobra.Command, theme Theme) string {
 		{"-c", "copy  ", "copy files or directories (default)"},
 		{"-m", "move  ", "move — rename or copy+delete across devices"},
 		{"-d", "delete", "delete files or directories"},
+		{"-t", "trash ", "move to the system trash"},
 	}
 	for _, m := range modes {
 		sb.WriteString("  " + flagStyle.Render(m.flag) + "  " + nameStyle.Render(m.name) + "  " + descStyle.Render(m.desc) + "\n")
@@ -40,10 +41,11 @@ func RenderHelp(cmd *cobra.Command, theme Theme) string {
 
 	section("flags", theme.Warning)
 	flags := []struct{ flag, desc string }{
-		{"-f, --force    ", "skip confirmation prompts"},
-		{"-r, --recursive", "required for deleting directories"},
-		{"-v, --verbose  ", "print each file as it completes"},
-		{"    --version  ", "show version"},
+		{"-f, --force       ", "skip confirmation prompts"},
+		{"-r, --recursive   ", "required for deleting directories"},
+		{"-v, --verbose     ", "repeat for more detail (-v, -vv, -vvv)"},
+		{"    --no-preserve-root", "allow operating on the filesystem root"},
+		{"    --version     ", "show version"},
 	}
 	for _, f := range flags {
 		sb.WriteString("  " + flagStyle.Render(f.flag) + "  " + descStyle.Render(f.desc) + "\n")
@@ -55,6 +57,7 @@ func RenderHelp(cmd *cobra.Command, theme Theme) string {
 		{"zap file.txt backup/", "copy file to directory"},
 		{"zap photos/ backup/", "copy directory recursively"},
 		{"zap -m old.txt new.txt", "rename / move file"},
+		{"zap -t photo.jpg", "move to trash"},
 		{"zap -d -r logs/", "delete directory recursively"},
 	}
 	cmdStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(theme.ProgressFrom))

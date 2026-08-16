@@ -2,6 +2,14 @@
 
 all notable changes to this project will be documented in this file.
 
+## [0.1.2] - 2026-08-16
+
+### features
+- trash mode (`-t`, `--trash`) moves files to the system trash — freedesktop spec on linux, `~/.Trash` on macos, with name collision handling and cross-device support
+- delete now refuses to operate on the filesystem root unless `--no-preserve-root` is given
+- verbosity levels: `-v` files, `-vv` operation logging, `-vvv` debug output
+- conflicting modes are rejected with a hint instead of behaving unexpectedly
+
 ## [0.1.1] - 2026-08-15
 
 ### fixes
@@ -20,5 +28,6 @@ all notable changes to this project will be documented in this file.
 - safe overwrite prompts and directory delete validation
 - non-tty fallback for script pipelines
 
+[0.1.2]: https://github.com/programmersd21/zap/releases/tag/v0.1.2
 [0.1.1]: https://github.com/programmersd21/zap/releases/tag/v0.1.1
 [0.1.0]: https://github.com/programmersd21/zap/releases/tag/v0.1.0

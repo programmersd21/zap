@@ -20,16 +20,18 @@ import (
 	"github.com/programmersd21/zap/internal/walk"
 )
 
-const version = "0.1.1"
+const version = "0.1.2"
 
 var (
-	flagMove      bool
-	flagDelete    bool
-	flagCopy      bool
-	flagForce     bool
-	flagRecursive bool
-	flagVerbose   bool
-	flagVersion   bool
+	flagMove           bool
+	flagDelete         bool
+	flagCopy           bool
+	flagTrash          bool
+	flagForce          bool
+	flagRecursive      bool
+	flagVerbose        int
+	flagNoPreserveRoot bool
+	flagVersion        bool
 )
 
 func main() {
@@ -59,9 +61,11 @@ it shows real-time progress for any operation — from single files to huge dire
 	rootCmd.Flags().BoolVarP(&flagMove, "move", "m", false, "move instead of copy")
 	rootCmd.Flags().BoolVarP(&flagDelete, "delete", "d", false, "delete instead of copy")
 	rootCmd.Flags().BoolVarP(&flagCopy, "copy", "c", false, "copy (explicit, same as default)")
+	rootCmd.Flags().BoolVarP(&flagTrash, "trash", "t", false, "move to trash instead of copy")
 	rootCmd.Flags().BoolVarP(&flagForce, "force", "f", false, "overwrite without prompting")
 	rootCmd.Flags().BoolVarP(&flagRecursive, "recursive", "r", false, "recursive (required for deleting directories)")
-	rootCmd.Flags().BoolVarP(&flagVerbose, "verbose", "v", false, "print each file as it completes")
+	rootCmd.Flags().CountVarP(&flagVerbose, "verbose", "v", "verbosity: -v files, -vv operations, -vvv debug")
+	rootCmd.Flags().BoolVar(&flagNoPreserveRoot, "no-preserve-root", false, "allow operating on the filesystem root")
 	rootCmd.Flags().BoolVar(&flagVersion, "version", false, "show version")
 
 	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
@@ -82,11 +86,22 @@ func run(ctx context.Context, args []string) error {
 		return nil
 	}
 
+	if err := checkModes(); err != nil {
+		return err
+	}
+
 	if flagDelete {
 		if len(args) == 0 {
 			return newHintError("delete mode requires at least one path", "zap -d -r <path>...")
 		}
 		return runDelete(ctx, args)
+	}
+
+	if flagTrash {
+		if len(args) == 0 {
+			return newHintError("trash mode requires at least one path", "zap -t <path>...")
+		}
+		return runTrash(ctx, args)
 	}
 
 	if len(args) < 2 {
@@ -101,6 +116,25 @@ func run(ctx context.Context, args []string) error {
 	}
 
 	return runCopy(ctx, sources, dest)
+}
+
+func checkModes() error {
+	modes := 0
+	for _, enabled := range []bool{flagMove, flagDelete, flagCopy, flagTrash} {
+		if enabled {
+			modes++
+		}
+	}
+	if modes > 1 {
+		return newHintError("conflicting modes selected", "choose one of copy, move, delete, or trash")
+	}
+	return nil
+}
+
+func debugf(level int, format string, args ...any) {
+	if flagVerbose >= level {
+		fmt.Fprintf(os.Stderr, "debug: "+format+"\n", args...)
+	}
 }
 
 func runCopy(ctx context.Context, sources []string, dest string) error {
@@ -122,11 +156,12 @@ func runCopyDirect(sources []string, dest string) error {
 	ec := errs.NewCollector()
 	for _, src := range sources {
 		dst := destPath(dest, src)
+		debugf(2, "copy %s -> %s", src, dst)
 		opts := ops.CopyOptions{Force: flagForce, Errors: ec}
 		if err := ops.Copy(src, dst, opts); err != nil {
 			ec.Add(src, err)
 		}
-		if flagVerbose {
+		if flagVerbose >= 1 {
 			fmt.Fprintf(os.Stderr, "  → %s\n", dst)
 		}
 	}
@@ -147,8 +182,10 @@ func runCopyWithProgress(ctx context.Context, sources []string, dest string, sta
 	}
 
 	ec := errs.NewCollector()
-	model := ui.NewModel(ui.ThemeMocha, ui.OpCopy, flagVerbose, stats.TotalBytes, stats.TotalFiles)
+	model := ui.NewModel(ui.ThemeMocha, ui.OpCopy, flagVerbose >= 1, stats.TotalBytes, stats.TotalFiles)
 	p := tea.NewProgram(model)
+
+	debugf(3, "copy stats: %d bytes, %d files", stats.TotalBytes, stats.TotalFiles)
 
 	done := make(chan struct{})
 	go func() {
@@ -198,11 +235,12 @@ func runMove(ctx context.Context, sources []string, dest string) error {
 
 	for _, src := range sources {
 		dst := destPath(dest, src)
+		debugf(2, "move %s -> %s", src, dst)
 		opts := ops.MoveOptions{Force: flagForce, Errors: ec}
 		if err := ops.Move(src, dst, opts); err != nil {
 			ec.Add(src, err)
 		}
-		if flagVerbose {
+		if flagVerbose >= 1 {
 			fmt.Fprintf(os.Stderr, "  %s → %s\n", src, dst)
 		}
 	}
@@ -234,11 +272,12 @@ func runDelete(ctx context.Context, paths []string) error {
 func runDeleteDirect(paths []string) error {
 	ec := errs.NewCollector()
 	for _, path := range paths {
-		opts := ops.DeleteOptions{Recursive: flagRecursive, Errors: ec}
+		debugf(2, "delete %s", path)
+		opts := ops.DeleteOptions{Recursive: flagRecursive, Errors: ec, NoPreserveRoot: flagNoPreserveRoot}
 		if err := ops.Delete(path, opts); err != nil && !flagForce {
 			ec.Add(path, err)
 		}
-		if flagVerbose {
+		if flagVerbose >= 1 {
 			fmt.Fprintf(os.Stderr, "  deleted %s\n", path)
 		}
 	}
@@ -247,7 +286,7 @@ func runDeleteDirect(paths []string) error {
 
 func runDeleteWithProgress(ctx context.Context, paths []string, stats walk.Stats) error {
 	ec := errs.NewCollector()
-	model := ui.NewModel(ui.ThemeMocha, ui.OpDelete, flagVerbose, 0, stats.TotalFiles)
+	model := ui.NewModel(ui.ThemeMocha, ui.OpDelete, flagVerbose >= 1, 0, stats.TotalFiles)
 	p := tea.NewProgram(model)
 
 	done := make(chan struct{})
@@ -258,11 +297,13 @@ func runDeleteWithProgress(ctx context.Context, paths []string, stats walk.Stats
 			if ctx.Err() != nil {
 				return
 			}
+			debugf(2, "delete %s", path)
 			opts := ops.DeleteOptions{
-				Recursive:  flagRecursive,
-				Program:    p,
-				Errors:     ec,
-				CumulFiles: &cumulFiles,
+				Recursive:      flagRecursive,
+				Program:        p,
+				Errors:         ec,
+				CumulFiles:     &cumulFiles,
+				NoPreserveRoot: flagNoPreserveRoot,
 			}
 			if err := ops.Delete(path, opts); err != nil && !flagForce {
 				ec.Add(path, err)
@@ -285,6 +326,83 @@ func runDeleteWithProgress(ctx context.Context, paths []string, stats walk.Stats
 
 	if ctx.Err() != nil {
 		printInterrupted("delete", stats.TotalFiles)
+		os.Exit(130)
+	}
+
+	return summarizeErrors(ec)
+}
+
+func runTrash(ctx context.Context, paths []string) error {
+	if !term.IsTerminal(os.Stdout.Fd()) {
+		return runTrashDirect(paths)
+	}
+	if w, _, err := term.GetSize(os.Stdout.Fd()); err != nil || w == 0 {
+		return runTrashDirect(paths)
+	}
+
+	stats, err := walk.ComputeStats(paths)
+	if err != nil {
+		return err
+	}
+	return runTrashWithProgress(ctx, paths, stats)
+}
+
+func runTrashDirect(paths []string) error {
+	ec := errs.NewCollector()
+	for _, path := range paths {
+		debugf(2, "trash %s", path)
+		opts := ops.TrashOptions{Errors: ec}
+		if err := ops.Trash(path, opts); err != nil {
+			ec.Add(path, err)
+		}
+		if flagVerbose >= 1 {
+			fmt.Fprintf(os.Stderr, "  → trash %s\n", path)
+		}
+	}
+	return summarizeErrors(ec)
+}
+
+func runTrashWithProgress(ctx context.Context, paths []string, stats walk.Stats) error {
+	ec := errs.NewCollector()
+	model := ui.NewModel(ui.ThemeMocha, ui.OpTrash, flagVerbose >= 1, 0, stats.TotalFiles)
+	p := tea.NewProgram(model)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		var cumulBytes, cumulFiles int64
+		for _, path := range paths {
+			if ctx.Err() != nil {
+				return
+			}
+			debugf(2, "trash %s", path)
+			opts := ops.TrashOptions{
+				Program:    p,
+				Errors:     ec,
+				CumulBytes: &cumulBytes,
+				CumulFiles: &cumulFiles,
+			}
+			if err := ops.Trash(path, opts); err != nil {
+				ec.Add(path, err)
+			}
+		}
+		if ctx.Err() == nil {
+			if ec.HasErrors() {
+				p.Send(ui.ErrorMsg{Err: fmt.Errorf("%d error(s)", ec.Count())})
+			} else {
+				p.Send(ui.CompletedMsg{})
+			}
+		}
+	}()
+
+	if _, err := p.Run(); err != nil {
+		<-done
+		return fmt.Errorf("ui error: %w", err)
+	}
+	<-done
+
+	if ctx.Err() != nil {
+		printInterrupted("trash", stats.TotalFiles)
 		os.Exit(130)
 	}
 

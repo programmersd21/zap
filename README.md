@@ -11,7 +11,7 @@ fast file operations with real-time progress.
 - **fast** — 1 mb buffered streaming io for large file copies
 - **real-time progress** — transfer speeds, file counts, and estimated time remaining
 - **terminal aware** — dynamic width adjustments and automatic path truncation
-- **safe defaults** — same-path identity protection, overwrite confirmations (`[Y/n]`), and recursive delete checks
+- **safe defaults** — same-path identity protection, overwrite confirmations (`[Y/n]`), recursive delete checks, and root protection (`--no-preserve-root` to override)
 - **script friendly** — automatically falls back to direct output when stdout is not a tty
 
 ## install
@@ -48,6 +48,12 @@ zap -d file.log
 zap -d -r cache/
 ```
 
+### trash (`-t`)
+```bash
+zap -t file.log
+zap -t cache/
+```
+
 ## flags
 
 | flag | description |
@@ -55,9 +61,11 @@ zap -d -r cache/
 | `-c, --copy` | copy mode (default) |
 | `-m, --move` | move mode (rename or copy+delete across devices) |
 | `-d, --delete` | delete mode |
+| `-t, --trash` | trash mode (system trash) |
 | `-f, --force` | overwrite without confirmation |
 | `-r, --recursive` | required for deleting directories |
-| `-v, --verbose` | print each file as it completes |
+| `-v, --verbose` | verbosity: `-v` files, `-vv` operations, `-vvv` debug |
+| `--no-preserve-root` | allow operating on the filesystem root |
 | `--version` | show version |
 
 ## license

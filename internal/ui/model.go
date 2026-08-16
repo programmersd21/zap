@@ -14,6 +14,7 @@ const (
 	OpCopy Op = iota
 	OpMove
 	OpDelete
+	OpTrash
 )
 
 type ProgressMsg struct {

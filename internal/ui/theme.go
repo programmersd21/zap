@@ -19,6 +19,7 @@ type Theme struct {
 	CopyColor    string
 	MoveColor    string
 	DeleteColor  string
+	TrashColor   string
 }
 
 var ThemeMocha = Theme{
@@ -36,6 +37,7 @@ var ThemeMocha = Theme{
 	CopyColor:    "#89b4fa",
 	MoveColor:    "#fab387",
 	DeleteColor:  "#f38ba8",
+	TrashColor:   "#89dceb",
 }
 
 type Styles struct {
@@ -57,6 +59,7 @@ type Styles struct {
 	CopyStyle    lipgloss.Style
 	MoveStyle    lipgloss.Style
 	DeleteStyle  lipgloss.Style
+	TrashStyle   lipgloss.Style
 	ProgressFrom string
 	ProgressTo   string
 	Unfilled     string
@@ -82,6 +85,7 @@ func NewStyles(theme Theme) Styles {
 		CopyStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color(theme.CopyColor)).Bold(true),
 		MoveStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color(theme.MoveColor)).Bold(true),
 		DeleteStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color(theme.DeleteColor)).Bold(true),
+		TrashStyle:   lipgloss.NewStyle().Foreground(lipgloss.Color(theme.TrashColor)).Bold(true),
 		ProgressFrom: theme.ProgressFrom,
 		ProgressTo:   theme.ProgressTo,
 		Unfilled:     theme.Unfilled,

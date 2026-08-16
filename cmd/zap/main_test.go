@@ -28,8 +28,8 @@ func TestVersion(t *testing.T) {
 		t.Fatalf("failed to run --version: %v", err)
 	}
 
-	if !strings.Contains(string(output), "0.1.1") {
-		t.Errorf("expected version 0.1.1, got: %s", output)
+	if !strings.Contains(string(output), version) {
+		t.Errorf("expected version %s, got: %s", version, output)
 	}
 }
 
@@ -170,6 +170,79 @@ func TestDeleteIntegration(t *testing.T) {
 	// verify file is gone
 	if _, err := os.Stat(testFile); !os.IsNotExist(err) {
 		t.Error("file should not exist after delete")
+	}
+}
+
+// TestTrashIntegration tests trash operation
+func TestTrashIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	binary := filepath.Join(t.TempDir(), "zap")
+	cmd := exec.Command("go", "build", "-o", binary, ".")
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to build: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	trashHome := filepath.Join(tmpDir, "trash-home")
+	t.Setenv("XDG_DATA_HOME", trashHome)
+
+	testFile := filepath.Join(tmpDir, "trash_test.txt")
+	if err := os.WriteFile(testFile, []byte("trash me"), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	cmd = exec.Command(binary, "-t", testFile)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("trash failed: %v\noutput: %s", err, output)
+	}
+
+	if _, err := os.Stat(testFile); !os.IsNotExist(err) {
+		t.Error("source should not exist after trash")
+	}
+	if _, err := os.Stat(filepath.Join(trashHome, "Trash", "files", "trash_test.txt")); err != nil {
+		t.Errorf("file should be in the trash: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(trashHome, "Trash", "info", "trash_test.txt.trashinfo")); err != nil {
+		t.Errorf("trashinfo should exist: %v", err)
+	}
+}
+
+// TestDeletePreservesRoot tests root protection
+func TestDeletePreservesRoot(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	binary := filepath.Join(t.TempDir(), "zap")
+	cmd := exec.Command("go", "build", "-o", binary, ".")
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to build: %v", err)
+	}
+
+	cmd = exec.Command(binary, "-d", "-r", "/")
+	if output, err := cmd.CombinedOutput(); err == nil {
+		t.Errorf("expected root delete to be refused, output: %s", output)
+	}
+}
+
+// TestConflictingModes tests mode exclusivity
+func TestConflictingModes(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	binary := filepath.Join(t.TempDir(), "zap")
+	cmd := exec.Command("go", "build", "-o", binary, ".")
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to build: %v", err)
+	}
+
+	cmd = exec.Command(binary, "-d", "-m", "/tmp/x", "/tmp/y")
+	if output, err := cmd.CombinedOutput(); err == nil {
+		t.Errorf("expected conflicting modes to fail, output: %s", output)
 	}
 }
 

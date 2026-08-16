@@ -12,10 +12,11 @@ import (
 )
 
 type DeleteOptions struct {
-	Recursive  bool
-	Program    *tea.Program
-	Errors     *errs.Collector
-	CumulFiles *int64
+	Recursive      bool
+	Program        *tea.Program
+	Errors         *errs.Collector
+	CumulFiles     *int64
+	NoPreserveRoot bool
 }
 
 func Delete(path string, opts DeleteOptions) error {
@@ -25,6 +26,10 @@ func Delete(path string, opts DeleteOptions) error {
 			return nil
 		}
 		return err
+	}
+
+	if !opts.NoPreserveRoot && isRoot(path) {
+		return fmt.Errorf("refusing to delete %q: this is the filesystem root (use --no-preserve-root to override)", path)
 	}
 
 	if info.IsDir() {
@@ -112,4 +117,12 @@ func sendDeleteProgress(opts DeleteOptions, path string, isFile bool) {
 		FilesDone:   files,
 		CurrentFile: path,
 	})
+}
+
+func isRoot(path string) bool {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	return filepath.Clean(abs) == string(filepath.Separator)
 }
