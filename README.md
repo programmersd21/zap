@@ -19,6 +19,9 @@ fast file operations with real-time progress.
 ```bash
 go install github.com/programmersd21/zap/cmd/zap@latest
 ```
+```
+yay -S zap-cli-bin
+```
 
 or build from source:
 
