@@ -16,6 +16,7 @@ const defaultShredPasses = 3
 
 type ShredOptions struct {
 	Passes         int
+	Verbose        int
 	Program        *tea.Program
 	Errors         *errs.Collector
 	CumulBytes     *int64
@@ -45,6 +46,7 @@ func Shred(path string, opts ShredOptions) error {
 	if passes <= 0 {
 		passes = defaultShredPasses
 	}
+	debugLog(opts.Verbose, "shred %s: %d passes", path, passes)
 
 	baseline := int64(0)
 	if opts.CumulBytes != nil {
@@ -70,11 +72,13 @@ func Shred(path string, opts ShredOptions) error {
 
 	delOpts := DeleteOptions{
 		Errors:         opts.Errors,
+		Verbose:        opts.Verbose,
 		NoPreserveRoot: opts.NoPreserveRoot,
 	}
 	if err := Delete(path, delOpts); err != nil {
 		return fmt.Errorf("shred %s: %w", path, err)
 	}
+	opLog(opts.Verbose, "shred %s: removed", path)
 	return nil
 }
 

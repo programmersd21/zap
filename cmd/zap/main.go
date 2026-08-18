@@ -20,7 +20,7 @@ import (
 	"github.com/programmersd21/zap/internal/walk"
 )
 
-const version = "0.1.2"
+const version = "0.1.3"
 
 var (
 	flagMove           bool
@@ -148,9 +148,11 @@ func debugf(level int, format string, args ...any) {
 
 func runCopy(ctx context.Context, sources []string, dest string) error {
 	if !term.IsTerminal(os.Stdout.Fd()) {
+		debugf(3, "stdout is not a tty; using direct output")
 		return runCopyDirect(sources, dest)
 	}
 	if w, _, err := term.GetSize(os.Stdout.Fd()); err != nil || w == 0 {
+		debugf(3, "terminal size unavailable (%v); using direct output", err)
 		return runCopyDirect(sources, dest)
 	}
 
@@ -165,8 +167,8 @@ func runCopyDirect(sources []string, dest string) error {
 	ec := errs.NewCollector()
 	for _, src := range sources {
 		dst := destPath(dest, src)
-		debugf(2, "copy %s -> %s", src, dst)
-		opts := ops.CopyOptions{Force: flagForce, Errors: ec}
+		debugf(3, "resolved %s -> %s", src, dst)
+		opts := ops.CopyOptions{Force: flagForce, Verbose: flagVerbose, Errors: ec}
 		if err := ops.Copy(src, dst, opts); err != nil {
 			ec.Add(src, err)
 		}
@@ -205,8 +207,10 @@ func runCopyWithProgress(ctx context.Context, sources []string, dest string, sta
 				return
 			}
 			dst := destPath(dest, src)
+			debugf(3, "resolved %s -> %s", src, dst)
 			opts := ops.CopyOptions{
 				Force:      true,
+				Verbose:    flagVerbose,
 				Program:    p,
 				Errors:     ec,
 				CumulBytes: &cumulBytes,
@@ -244,8 +248,8 @@ func runMove(ctx context.Context, sources []string, dest string) error {
 
 	for _, src := range sources {
 		dst := destPath(dest, src)
-		debugf(2, "move %s -> %s", src, dst)
-		opts := ops.MoveOptions{Force: flagForce, Errors: ec}
+		debugf(3, "resolved %s -> %s", src, dst)
+		opts := ops.MoveOptions{Force: flagForce, Verbose: flagVerbose, Errors: ec}
 		if err := ops.Move(src, dst, opts); err != nil {
 			ec.Add(src, err)
 		}
@@ -267,11 +271,14 @@ func runDelete(ctx context.Context, paths []string) error {
 	if err != nil {
 		return err
 	}
+	debugf(3, "delete stats: %d files, %d dirs, %d bytes", stats.TotalFiles, stats.TotalDirs, stats.TotalBytes)
 
 	if !term.IsTerminal(os.Stdout.Fd()) {
+		debugf(3, "stdout is not a tty; using direct output")
 		return runDeleteDirect(paths)
 	}
 	if w, _, err := term.GetSize(os.Stdout.Fd()); err != nil || w == 0 {
+		debugf(3, "terminal size unavailable (%v); using direct output", err)
 		return runDeleteDirect(paths)
 	}
 
@@ -281,8 +288,8 @@ func runDelete(ctx context.Context, paths []string) error {
 func runDeleteDirect(paths []string) error {
 	ec := errs.NewCollector()
 	for _, path := range paths {
-		debugf(2, "delete %s", path)
-		opts := ops.DeleteOptions{Recursive: flagRecursive, Errors: ec, NoPreserveRoot: flagNoPreserveRoot}
+		debugf(3, "delete target %s", path)
+		opts := ops.DeleteOptions{Recursive: flagRecursive, Verbose: flagVerbose, Errors: ec, NoPreserveRoot: flagNoPreserveRoot}
 		if err := ops.Delete(path, opts); err != nil && !flagForce {
 			ec.Add(path, err)
 		}
@@ -306,9 +313,10 @@ func runDeleteWithProgress(ctx context.Context, paths []string, stats walk.Stats
 			if ctx.Err() != nil {
 				return
 			}
-			debugf(2, "delete %s", path)
+			debugf(3, "delete target %s", path)
 			opts := ops.DeleteOptions{
 				Recursive:      flagRecursive,
+				Verbose:        flagVerbose,
 				Program:        p,
 				Errors:         ec,
 				CumulFiles:     &cumulFiles,
@@ -343,9 +351,11 @@ func runDeleteWithProgress(ctx context.Context, paths []string, stats walk.Stats
 
 func runTrash(ctx context.Context, paths []string) error {
 	if !term.IsTerminal(os.Stdout.Fd()) {
+		debugf(3, "stdout is not a tty; using direct output")
 		return runTrashDirect(paths)
 	}
 	if w, _, err := term.GetSize(os.Stdout.Fd()); err != nil || w == 0 {
+		debugf(3, "terminal size unavailable (%v); using direct output", err)
 		return runTrashDirect(paths)
 	}
 
@@ -359,8 +369,8 @@ func runTrash(ctx context.Context, paths []string) error {
 func runTrashDirect(paths []string) error {
 	ec := errs.NewCollector()
 	for _, path := range paths {
-		debugf(2, "trash %s", path)
-		opts := ops.TrashOptions{Errors: ec}
+		debugf(3, "trash target %s", path)
+		opts := ops.TrashOptions{Verbose: flagVerbose, Errors: ec}
 		if err := ops.Trash(path, opts); err != nil {
 			ec.Add(path, err)
 		}
@@ -384,8 +394,9 @@ func runTrashWithProgress(ctx context.Context, paths []string, stats walk.Stats)
 			if ctx.Err() != nil {
 				return
 			}
-			debugf(2, "trash %s", path)
+			debugf(3, "trash target %s", path)
 			opts := ops.TrashOptions{
+				Verbose:    flagVerbose,
 				Program:    p,
 				Errors:     ec,
 				CumulBytes: &cumulBytes,
@@ -420,9 +431,11 @@ func runTrashWithProgress(ctx context.Context, paths []string, stats walk.Stats)
 
 func runShred(ctx context.Context, paths []string) error {
 	if !term.IsTerminal(os.Stdout.Fd()) {
+		debugf(3, "stdout is not a tty; using direct output")
 		return runShredDirect(paths)
 	}
 	if w, _, err := term.GetSize(os.Stdout.Fd()); err != nil || w == 0 {
+		debugf(3, "terminal size unavailable (%v); using direct output", err)
 		return runShredDirect(paths)
 	}
 
@@ -436,8 +449,8 @@ func runShred(ctx context.Context, paths []string) error {
 func runShredDirect(paths []string) error {
 	ec := errs.NewCollector()
 	for _, path := range paths {
-		debugf(2, "shred %s", path)
-		opts := ops.ShredOptions{Errors: ec, NoPreserveRoot: flagNoPreserveRoot}
+		debugf(3, "shred target %s", path)
+		opts := ops.ShredOptions{Verbose: flagVerbose, Errors: ec, NoPreserveRoot: flagNoPreserveRoot}
 		if err := ops.Shred(path, opts); err != nil {
 			ec.Add(path, err)
 		}
@@ -461,9 +474,10 @@ func runShredWithProgress(ctx context.Context, paths []string, stats walk.Stats)
 			if ctx.Err() != nil {
 				return
 			}
-			debugf(2, "shred %s", path)
+			debugf(3, "shred target %s", path)
 			opts := ops.ShredOptions{
 				Passes:         3,
+				Verbose:        flagVerbose,
 				Program:        p,
 				Errors:         ec,
 				CumulBytes:     &cumulBytes,

@@ -16,6 +16,7 @@ import (
 )
 
 type TrashOptions struct {
+	Verbose    int
 	Program    *tea.Program
 	Errors     *errs.Collector
 	CumulBytes *int64
@@ -47,6 +48,7 @@ func Trash(path string, opts TrashOptions) error {
 
 	err = os.Rename(path, dst)
 	if err == nil {
+		opLog(opts.Verbose, "trash %s -> %s", path, dst)
 		if writeErr := writeTrashInfo(infoDir, name, path); writeErr != nil {
 			return writeErr
 		}
@@ -60,8 +62,10 @@ func Trash(path string, opts TrashOptions) error {
 	}
 
 	// cross-device move: copy into the trash, then remove the source
+	opLog(opts.Verbose, "trash %s: cross-device, copy+delete fallback", path)
 	copyOpts := CopyOptions{
 		Force:      true,
+		Verbose:    opts.Verbose,
 		Program:    opts.Program,
 		Errors:     opts.Errors,
 		CumulBytes: opts.CumulBytes,
@@ -77,6 +81,7 @@ func Trash(path string, opts TrashOptions) error {
 	var deleted int64
 	delOpts := DeleteOptions{
 		Recursive:  true,
+		Verbose:    opts.Verbose,
 		Errors:     opts.Errors,
 		CumulFiles: &deleted,
 	}

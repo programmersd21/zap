@@ -13,6 +13,7 @@ import (
 
 type DeleteOptions struct {
 	Recursive      bool
+	Verbose        int
 	Program        *tea.Program
 	Errors         *errs.Collector
 	CumulFiles     *int64
@@ -29,11 +30,13 @@ func Delete(path string, opts DeleteOptions) error {
 	}
 
 	if !opts.NoPreserveRoot && isRoot(path) {
+		opLog(opts.Verbose, "refuse %s: filesystem root", path)
 		return fmt.Errorf("refusing to delete %q: this is the filesystem root (use --no-preserve-root to override)", path)
 	}
 
 	if info.IsDir() {
 		if !opts.Recursive {
+			opLog(opts.Verbose, "skip %s: directory requires -r", path)
 			return fmt.Errorf("cannot delete directory %q: -r required", path)
 		}
 		return deleteDir(path, opts)
@@ -44,8 +47,10 @@ func Delete(path string, opts DeleteOptions) error {
 
 func deleteFile(path string, opts DeleteOptions) error {
 	if err := os.Remove(path); err != nil {
+		opLog(opts.Verbose, "error deleting %s: %v", path, err)
 		return err
 	}
+	opLog(opts.Verbose, "deleted %s", path)
 	sendDeleteProgress(opts, path, true)
 	return nil
 }
@@ -55,6 +60,7 @@ func deleteDir(path string, opts DeleteOptions) error {
 
 	err := filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
+			opLog(opts.Verbose, "skip %s: %v", p, err)
 			if opts.Errors != nil {
 				opts.Errors.Add(p, err)
 			}
@@ -75,10 +81,12 @@ func deleteDir(path string, opts DeleteOptions) error {
 
 	for _, f := range files {
 		if err := os.Remove(f); err != nil {
+			opLog(opts.Verbose, "error deleting %s: %v", f, err)
 			if opts.Errors != nil {
 				opts.Errors.Add(f, err)
 			}
 		} else {
+			opLog(opts.Verbose, "deleted %s", f)
 			sendDeleteProgress(opts, f, true)
 		}
 	}
@@ -86,10 +94,12 @@ func deleteDir(path string, opts DeleteOptions) error {
 	for i := len(dirs) - 1; i >= 0; i-- {
 		d := dirs[i]
 		if err := os.Remove(d); err != nil {
+			opLog(opts.Verbose, "error deleting %s: %v", d, err)
 			if opts.Errors != nil {
 				opts.Errors.Add(d, err)
 			}
 		} else {
+			opLog(opts.Verbose, "deleted %s", d)
 			sendDeleteProgress(opts, d, false)
 		}
 	}
@@ -97,6 +107,7 @@ func deleteDir(path string, opts DeleteOptions) error {
 	if err := os.Remove(path); err != nil {
 		return err
 	}
+	opLog(opts.Verbose, "deleted %s", path)
 	sendDeleteProgress(opts, path, false)
 
 	return nil

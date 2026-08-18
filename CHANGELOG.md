@@ -2,6 +2,12 @@
 
 all notable changes to this project will be documented in this file.
 
+## [0.1.3] - 2026-08-16
+
+### changes
+- verbosity levels are now clearly separated: `-vv` reports operation details (sources, destinations, overwrites, skip reasons, permission and filesystem errors), `-vvv` adds internal debug output (resolved paths, tty decisions, computed stats, shred passes)
+- operation diagnostics from the engine are logged to stderr with an `op:`/`debug:` prefix, so progress ui output on stdout stays clean
+
 ## [0.1.2] - 2026-08-16
 
 ### features
@@ -29,6 +35,7 @@ all notable changes to this project will be documented in this file.
 - safe overwrite prompts and directory delete validation
 - non-tty fallback for script pipelines
 
+[0.1.3]: https://github.com/programmersd21/zap/releases/tag/v0.1.3
 [0.1.2]: https://github.com/programmersd21/zap/releases/tag/v0.1.2
 [0.1.1]: https://github.com/programmersd21/zap/releases/tag/v0.1.1
 [0.1.0]: https://github.com/programmersd21/zap/releases/tag/v0.1.0

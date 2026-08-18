@@ -14,6 +14,7 @@ import (
 
 type CopyOptions struct {
 	Force      bool
+	Verbose    int
 	Program    *tea.Program
 	Errors     *errs.Collector
 	CumulBytes *int64
@@ -45,13 +46,16 @@ func Copy(src, dst string, opts CopyOptions) error {
 	}
 
 	if samePath(src, dst) {
+		opLog(opts.Verbose, "skip %s: same file as %s", src, dst)
 		return fmt.Errorf("%s and %s are the same file", src, dst)
 	}
 
 	if dstInfo, err := os.Lstat(dst); err == nil {
 		if !opts.Force {
+			opLog(opts.Verbose, "skip %s: destination exists (%s)", src, dst)
 			return fmt.Errorf("destination %s exists", dst)
 		}
+		opLog(opts.Verbose, "overwrite %s", dst)
 		if dstInfo.IsDir() {
 			if err := os.RemoveAll(dst); err != nil {
 				return err
@@ -62,8 +66,10 @@ func Copy(src, dst string, opts CopyOptions) error {
 	}
 
 	if srcInfo.IsDir() {
+		opLog(opts.Verbose, "copy dir %s -> %s", src, dst)
 		return copyDir(src, dst, opts)
 	}
+	opLog(opts.Verbose, "copy %s -> %s", src, dst)
 	return copyFile(src, dst, srcInfo, opts)
 }
 
@@ -125,9 +131,11 @@ func copyFile(src, dst string, srcInfo fs.FileInfo, opts CopyOptions) error {
 	}
 
 	if err := dstFile.Chmod(srcInfo.Mode()); err != nil && opts.Errors != nil {
+		opLog(opts.Verbose, "chmod %s: %v", dst, err)
 		opts.Errors.Add(dst, fmt.Errorf("chmod: %w", err))
 	}
 	if err := os.Chtimes(dst, srcInfo.ModTime(), srcInfo.ModTime()); err != nil && opts.Errors != nil {
+		opLog(opts.Verbose, "chtimes %s: %v", dst, err)
 		opts.Errors.Add(dst, fmt.Errorf("chtimes: %w", err))
 	}
 
@@ -171,6 +179,7 @@ func copyDir(src, dst string, opts CopyOptions) error {
 
 	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
+			opLog(opts.Verbose, "skip %s: %v", path, err)
 			if opts.Errors != nil {
 				opts.Errors.Add(path, err)
 			}

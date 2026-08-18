@@ -12,6 +12,7 @@ import (
 
 type MoveOptions struct {
 	Force      bool
+	Verbose    int
 	Program    *tea.Program
 	Errors     *errs.Collector
 	CumulBytes *int64
@@ -20,16 +21,19 @@ type MoveOptions struct {
 
 func Move(src, dst string, opts MoveOptions) error {
 	if samePath(src, dst) {
+		opLog(opts.Verbose, "skip %s: same file as %s", src, dst)
 		return fmt.Errorf("%s and %s are the same file", src, dst)
 	}
 	err := os.Rename(src, dst)
 	if err == nil {
+		opLog(opts.Verbose, "move %s -> %s", src, dst)
 		return nil
 	}
 
 	var linkErr *os.LinkError
 	if errors.As(err, &linkErr) {
 		if errno, ok := linkErr.Err.(syscall.Errno); ok && errno == syscall.EXDEV {
+			opLog(opts.Verbose, "move %s -> %s: cross-device, copy+delete fallback", src, dst)
 			return moveCrossDevice(src, dst, opts)
 		}
 	}
